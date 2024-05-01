@@ -154,9 +154,10 @@ fn button_system(
     // if time. % 0.1 < 0.01 {
     // println!("Time: {}", time.elapsed_seconds() % 0.2);
     // if time.elapsed_seconds() % 0.05 < 0.01 {
-        path.scan_neighbours();
+        // path.scan_neighbours();
     // }
     // }
+    path.generate();
 
 }
 
@@ -271,11 +272,7 @@ fn render_arrays(
     };
 
     if path.finished {
-        let path = get_path(
-            &path.target,
-            &mut vec![],
-            &path
-        );
+        let path = &path.path;
         
         for pos in path {
             gizmos.rect_2d(
@@ -289,48 +286,6 @@ fn render_arrays(
     }
 }
 
-fn get_path(
-    &from: &(u32, u32),
-    current_path: &mut Vec<(u32, u32)>,
-    path: &PathFinding
-) -> Vec<(u32, u32)> {
-    if !path.finished {
-        return vec![];
-    }
-    if from == path.start {
-        return current_path.to_vec();
-    }
-
-    let from_cell = path.cell_map.get(&from);
-    let Some(from_cell) = from_cell else {
-        return current_path.to_vec();
-    };
-    let direction = from_cell.direction;
-    let new_pos: (i32, i32) = match direction {
-        1 => (-1, 1),
-        2 => (0, 1),
-        3 => (1, 1),
-        4 => (-1, 0),
-        5 => (1, 0),
-        6 => (-1, -1),
-        7 => (0, -1),
-        8 => (1, -1),
-        _ => (from.0 as i32, from.1 as i32),
-    };
-    let next_cell = (
-        (from.0 as i32 + new_pos.0) as u32,
-        (from.1 as i32 + new_pos.1) as u32,
-    );
-
-    current_path.push(next_cell);
-
-    return get_path(
-        &next_cell,
-        current_path,
-        path
-    );
-
-}
 
 fn get_location() -> Vec<Vec<u32>> {
     let mut copy: Vec<Vec<u32>> = LOCATION.iter().map(|row| row.to_vec()).collect();

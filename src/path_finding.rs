@@ -34,6 +34,8 @@ pub struct PathFinding {
 
     pub finished: bool,
 
+    pub path: Vec<(u32, u32)>,
+
     pub location: Vec<Vec<u32>>,
 }
 
@@ -46,6 +48,7 @@ impl PathFinding {
         width: u32,
     ) -> Self {
         Self {
+            path: vec![],
             height,
             width,
             finished: false,
@@ -90,6 +93,55 @@ impl PathFinding {
             }
         }
     }
+
+    pub fn generate(&mut self) {
+        while !self.finished {
+            self.scan_neighbours();
+        }
+    } 
+
+    fn get_path(
+        &self,
+        &from: &(u32, u32),
+        current_path: &mut Vec<(u32, u32)>
+    ) -> Vec<(u32, u32)> {
+        if !self.finished {
+            return vec![];
+        }
+        if from == self.start {
+            return current_path.to_vec();
+        }
+    
+        let from_cell = self.cell_map.get(&from);
+        let Some(from_cell) = from_cell else {
+            return current_path.to_vec();
+        };
+        let direction = from_cell.direction;
+        let new_pos: (i32, i32) = match direction {
+            1 => (-1, 1),
+            2 => (0, 1),
+            3 => (1, 1),
+            4 => (-1, 0),
+            5 => (1, 0),
+            6 => (-1, -1),
+            7 => (0, -1),
+            8 => (1, -1),
+            _ => (from.0 as i32, from.1 as i32),
+        };
+        let next_cell = (
+            (from.0 as i32 + new_pos.0) as u32,
+            (from.1 as i32 + new_pos.1) as u32,
+        );
+    
+        current_path.push(next_cell);
+    
+        return self.get_path(
+            &next_cell,
+            current_path
+        );
+    
+    }
+    
 
     pub fn scan_neighbours(
         &mut self
@@ -179,6 +231,14 @@ impl PathFinding {
     
         self.closed_array.push(scan_pos);
         self.open_array.retain(|&x| x != scan_pos);
+
+        if self.open_array.len() == 0 {
+            self.finished = true;
+        }
+
+        if self.finished {
+            self.path = self.get_path(&self.target, &mut vec![]);
+        }
     }
 }
 
