@@ -37,7 +37,7 @@ fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .insert_resource(
-            PathFinding::new(START, TARGET, get_location(), X_SIZE, Y_SIZE)
+            PathFinding::new(vec2_to_index(&START), vec2_to_index(&TARGET), get_location(), X_SIZE, Y_SIZE)
         )
         .add_systems(Startup, setup)
 
@@ -128,8 +128,8 @@ fn setup_buttons(
 }
 
 
-fn vec2_to_index(vec2: &Vec2) -> (i32, i32) {
-    (vec2.x as i32, vec2.y as i32)
+fn vec2_to_index(vec2: &Vec2) -> (u32, u32) {
+    (vec2.x as u32, vec2.y as u32)
 }
 
 fn button_system(
@@ -202,7 +202,8 @@ fn render_agent(
     path: Res<PathFinding>
 ) {
     gizmos.rect_2d(
-        path.start * CELL_SIZE - GRID_HALF_SIZE,
+        // path.start * CELL_SIZE - GRID_HALF_SIZE,
+        Vec2::new(path.start.0 as f32, path.start.1 as f32) * CELL_SIZE - GRID_HALF_SIZE,
         0.,
         Vec2::splat(CELL_SIZE - 7.),
         Color::Rgba { red: 0.5, green: 0.5, blue: 0.9, alpha: 1. },
@@ -219,17 +220,18 @@ fn render_arrays(
     mut gizmos: Gizmos,
     path: Res<PathFinding>
 ) {
-    for &possition in &path.open_array {
+    for &pos in &path.open_array {
         gizmos.rect_2d(
-            possition * CELL_SIZE - GRID_HALF_SIZE,
+            // possition * CELL_SIZE - GRID_HALF_SIZE,
+            Vec2::new(pos.0 as f32, pos.1 as f32) * CELL_SIZE - GRID_HALF_SIZE,
             0.,
             Vec2::splat(CELL_SIZE - 7.),
             Color::Rgba { red: 0.9, green: 0.9, blue: 0.5, alpha: 1. },
         );
     }
-    for &possition in &path.closed_array {
+    for &pos in &path.closed_array {
         gizmos.rect_2d(
-            possition * CELL_SIZE - GRID_HALF_SIZE,
+            Vec2::new(pos.0 as f32, pos.1 as f32) * CELL_SIZE - GRID_HALF_SIZE,
             0.,
             Vec2::splat(CELL_SIZE - 7.),
             Color::Rgba { red: 0.9, green: 0.5, blue: 0.9, alpha: 1. },
@@ -239,11 +241,11 @@ fn render_arrays(
     // TODO combine open and closed arrays
     let all_positions = path.closed_array.iter();
     // let all_positions = path.open_array.iter().chain(path.closed_array.iter());
-    for possition in all_positions {
-        let cell = path.cell_map.get(&vec2_to_index(&possition));
+    for pos in all_positions {
+        let cell = path.cell_map.get(&pos);
         if let Some(cell) = cell {
-            // TODO depend of direction - render arrow in direction
-            let start = *possition * CELL_SIZE - GRID_HALF_SIZE;
+
+            let start = Vec2::new(pos.0 as f32, pos.1 as f32) * CELL_SIZE - GRID_HALF_SIZE;
             // let end = start + Vec2::splat(CELL_SIZE / 2.);
             let end = match cell.direction {
                 // top left
@@ -274,14 +276,15 @@ fn render_arrays(
 
     if path.finished {
         let path = get_path(
-            &TARGET,
+            &path.target,
             &mut vec![],
             &path
         );
         
-        for cell in path {
+        for pos in path {
             gizmos.rect_2d(
-                cell * CELL_SIZE - GRID_HALF_SIZE,
+                // cell * CELL_SIZE - GRID_HALF_SIZE,
+                Vec2::new(pos.0 as f32, pos.1 as f32) * CELL_SIZE - GRID_HALF_SIZE,
                 0.,
                 Vec2::splat(CELL_SIZE - 15.),
                 Color::Rgba { red: 0.1, green: 0.1, blue: 1.0, alpha: 1. },
@@ -292,10 +295,10 @@ fn render_arrays(
 }
 
 fn get_path(
-    &from: &Vec2,
-    current_path: &mut Vec<Vec2>,
+    &from: &(u32, u32),
+    current_path: &mut Vec<(u32, u32)>,
     path: &PathFinding
-) -> Vec<Vec2> {
+) -> Vec<(u32, u32)> {
     if !path.finished {
         return vec![];
     }
@@ -304,23 +307,26 @@ fn get_path(
     }
 
     // TODO get cell depending of direction of FROM cell
-    let from_cell = path.cell_map.get(&vec2_to_index(&from));
+    let from_cell = path.cell_map.get(&from);
     let Some(from_cell) = from_cell else {
         return (&current_path).to_vec();
     };
     let direction = from_cell.direction;
-    let new_position = match direction {
-        1 => Vec2::new(-1., 1.),
-        2 => Vec2::new(0., 1.),
-        3 => Vec2::new(1., 1.),
-        4 => Vec2::new(-1., 0.),
-        5 => Vec2::new(1., 0.),
-        6 => Vec2::new(-1., -1.),
-        7 => Vec2::new(0., -1.),
-        8 => Vec2::new(1., -1.),
-        _ => from,
+    let new_pos: (i32, i32) = match direction {
+        1 => (-1, 1),
+        2 => (0, 1),
+        3 => (1, 1),
+        4 => (-1, 0),
+        5 => (1, 0),
+        6 => (-1, -1),
+        7 => (0, -1),
+        8 => (1, -1),
+        _ => (from.0 as i32, from.1 as i32),
     };
-    let next_cell = from + new_position;
+    let next_cell = (
+        (from.0 as i32 + new_pos.0) as u32,
+        (from.1 as i32 + new_pos.1) as u32,
+    );
 
     current_path.push(next_cell);
 

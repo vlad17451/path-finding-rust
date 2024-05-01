@@ -18,6 +18,11 @@ impl Cell {
 }
 
 // TODO replace Vec2 with (i32, i32)
+#[derive(Debug, Clone, Copy)]
+struct Vec2 {
+    x: i32,
+    y: i32,
+}
 
 #[derive(Resource, Debug, Clone)]
 pub struct PathFinding {
@@ -27,12 +32,12 @@ pub struct PathFinding {
     pub height: u32,
     pub width: u32,
 
-    pub start: Vec2,
-    pub target: Vec2,
+    pub start: (u32, u32),
+    pub target: (u32, u32),
 
-    pub open_array: Vec<Vec2>,
-    pub closed_array: Vec<Vec2>,
-    pub cell_map: HashMap<(i32,i32), Cell>,
+    pub open_array: Vec<(u32, u32)>,
+    pub closed_array: Vec<(u32, u32)>,
+    pub cell_map: HashMap<(u32,u32), Cell>,
 
     pub finished: bool,
 
@@ -41,8 +46,8 @@ pub struct PathFinding {
 
 impl PathFinding {
     pub fn new(
-        start: Vec2,
-        target: Vec2,
+        start: (u32, u32),
+        target: (u32, u32),
         location: Vec<Vec<u32>>,
         height: u32,
         width: u32,
@@ -61,8 +66,8 @@ impl PathFinding {
     }
 
     pub fn get_direction(
-        from: &Vec2,
-        to: &Vec2
+        from: &(u32, u32),
+        to: &(u32, u32)
     ) -> u8 {
     
         // 1 2 3
@@ -72,11 +77,11 @@ impl PathFinding {
         if from == to {
             return 0;
         }
-    
-        let top = from.y < to.y;
-        let bottom = from.y > to.y;
-        let right = from.x < to.x;
-        let left = from.x > to.x;
+        
+        let top = from.1 < to.1;
+        let bottom = from.1 > to.1;
+        let right = from.0 < to.0;
+        let left = from.0 > to.0;
     
         if top {
             if left {
@@ -105,12 +110,14 @@ impl PathFinding {
         return 0;
     }
 
-    fn is_wall(&self, pos: Vec2) -> bool {
-        let out_of_bounds = pos.x < 0. || pos.x >= self.width as f32 || pos.y < 0. || pos.y >= self.height as f32;
+    fn is_wall(&self, pos: (i32, i32)) -> bool {
+        let x = pos.0;
+        let y = pos.1;
+        let out_of_bounds = x < 0 || x >= self.width as i32 || y < 0 || y >= self.height as i32;
         if out_of_bounds {
             return true;
         }
-        let is_wall = self.location[pos.y as usize][pos.x as usize] == 1;
+        let is_wall = self.location[y as usize][x as usize] == 1;
         return is_wall;
     }
 
@@ -118,7 +125,7 @@ impl PathFinding {
         &mut self
     ) {
 
-        let scan_pos: Vec2;
+        let scan_pos: (u32, u32);
         if self.open_array.len() == 0 {
             let start_cell = Cell {
                 cost: 0,
@@ -126,7 +133,7 @@ impl PathFinding {
                 direction: 0,
             };
             self.open_array.push(self.start);
-            self.cell_map.insert(vec2_to_index(&self.start), start_cell);
+            self.cell_map.insert(self.start, start_cell);
 
             scan_pos = self.start;
         } else {
@@ -139,23 +146,23 @@ impl PathFinding {
         }
 
         // TODO create 8 neighbours
-        let x = scan_pos.x;
-        let y = scan_pos.y;
+        let x = scan_pos.0 as i32;
+        let y = scan_pos.1 as i32;
         let neighbours = vec![
-            Vec2::new(x - 1., y + 1.), // top left
-            Vec2::new(x, y + 1.),      // top
-            Vec2::new(x + 1., y + 1.), // top right
+            (x - 1, y + 1), // top left
+            (x, y + 1),      // top
+            (x + 1, y + 1), // top right
     
-            Vec2::new(x - 1., y),      // left
-            Vec2::new(x + 1., y),      // right
+            (x - 1, y),      // left
+            (x + 1, y),      // right
     
-            Vec2::new(x - 1., y - 1.), // bottom left
-            Vec2::new(x, y - 1.),      // bottom
-            Vec2::new(x + 1., y - 1.), // bottom right
+            (x - 1, y - 1), // bottom left
+            (x, y - 1),      // bottom
+            (x + 1, y - 1), // bottom right
             
         ];
         
-        let current_cell = self.cell_map.get(&vec2_to_index(&scan_pos));    
+        let current_cell = self.cell_map.get(&scan_pos);    
         let Some(current_cell) = current_cell else {
             panic!("Current cell is not found");
             // return;
@@ -168,9 +175,10 @@ impl PathFinding {
             if self.is_wall(neighbour_pos) {
                 continue;
             }
+            let neighbour_pos = (neighbour_pos.0 as u32, neighbour_pos.1 as u32);
     
-            let neighbour_index = vec2_to_index(&neighbour_pos);
-            let neighbour_cell = self.cell_map.get(&neighbour_index);
+            // let neighbour_index = vec2_to_index(&neighbour_pos);
+            let neighbour_cell = self.cell_map.get(&neighbour_pos);
     
             
             let new_direction = PathFinding::get_direction(&neighbour_pos, &scan_pos);
@@ -195,7 +203,7 @@ impl PathFinding {
     
                 // println!("Final cell: {:?}", final_cell);
     
-                self.cell_map.insert(vec2_to_index(&self.target), final_cell);
+                self.cell_map.insert(self.target, final_cell);
     
                 // println!("Path found");
                 return;
@@ -213,10 +221,10 @@ impl PathFinding {
     
             if let Some(neighbour_cell) = neighbour_cell {
                 if new_cell.get_total_cost() < neighbour_cell.get_total_cost() {
-                    self.cell_map.insert(neighbour_index, new_cell);
+                    self.cell_map.insert(neighbour_pos, new_cell);
                 }
             } else {
-                self.cell_map.insert(neighbour_index, new_cell);
+                self.cell_map.insert(neighbour_pos, new_cell);
                 self.open_array.push(neighbour_pos);
             }
         }
@@ -226,7 +234,7 @@ impl PathFinding {
         self.open_array.retain(|&x| x != scan_pos);
     
     
-        println!("Direction: {:?} ", self.cell_map.get(&vec2_to_index(&scan_pos)));
+        println!("Direction: {:?} ", self.cell_map.get(&scan_pos));
     }
 
     // fn get_cell_by_pos(&self, position: Vec2) -> Option<Cell> {
@@ -239,9 +247,9 @@ impl PathFinding {
     // }
 }
 
-fn get_goal_distance(from: &Vec2, to: &Vec2) -> u32 {
-    let dx = (from.x - to.x).abs();
-    let dy = (from.y - to.y).abs();
+fn get_goal_distance(from: &(u32, u32), to: &(u32, u32)) -> u32 {
+    let dx = (from.0 as i32 - to.0 as i32).abs();
+    let dy = (from.1 as i32 - to.1 as i32).abs();
     (dx + dy) as u32 * 10
 }
 
@@ -255,11 +263,11 @@ fn get_cost_by_direction(
     }
 }
 
-fn vec2_to_index(vec2: &Vec2) -> (i32, i32) {
-    (vec2.x as i32, vec2.y as i32)
-}
+// fn vec2_to_index(vec2: &Vec2) -> (u32, u32) {
+//     (vec2.x as u32, vec2.y as u32)
+// }
 
-fn get_best_cell(meta: &PathFinding) -> Option<Vec2> {
+fn get_best_cell(meta: &PathFinding) -> Option<(u32, u32)> {
     if meta.open_array.len() == 0 {
         return None;
     }
@@ -267,18 +275,18 @@ fn get_best_cell(meta: &PathFinding) -> Option<Vec2> {
         return Some(meta.open_array[0]);
     }
 
-    let mut best_possition: Vec2 = meta.open_array[0];
-    for possition in &meta.open_array {
-        let cell = meta.cell_map.get(&vec2_to_index(possition));
-        let best_cell = meta.cell_map.get(&vec2_to_index(&best_possition));
+    let mut best_pos: (u32, u32) = meta.open_array[0];
+    for pos_to_check in &meta.open_array {
+        let cell = meta.cell_map.get(&pos_to_check);
+        let best_cell = meta.cell_map.get(&best_pos);
         
         if let Some(cell) = cell {
             if let Some(best_cell) = best_cell {
                 if cell.get_total_cost() < best_cell.get_total_cost() {
-                    best_possition = possition.clone();
+                    best_pos = pos_to_check.clone();
                 }
             }
         }
     }
-    return Some(best_possition);
+    return Some(best_pos);
 }
