@@ -1,20 +1,24 @@
-use std::collections::HashMap;
 
 use bevy::prelude::*;
 
-// const WALL_CELLS: [(i32, i32); 6] = [
-//     (1, 4),
-//     (2, 4),
-//     (3, 4),
-//     (4, 4),
-//     (5, 6),
-//     (5, 3),
-// ];
+
+mod path_finding;
+
+use path_finding::*;
 
 const X_SIZE: u32 = 10;
 const Y_SIZE: u32 = 10;
 
-    // TODO create 2d array of walls, with 0 and 1 values
+const START: Vec2 = Vec2::new(0., 0.);
+const TARGET: Vec2 = Vec2::new(9., 9.);
+
+
+const CELL_SIZE: f32 = 50.;
+const GRID_SIZE: Vec2 = Vec2::new(X_SIZE as f32, Y_SIZE as f32);
+
+
+const GRID_HALF_SIZE: Vec2 = Vec2::new(X_SIZE as f32 * CELL_SIZE / 2., Y_SIZE as f32 * CELL_SIZE / 2.);
+
 const LOCATION: [[u32; Y_SIZE as usize]; X_SIZE as usize] = [
     [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
     [0, 1, 1, 1, 1, 1, 0, 0, 1, 0],
@@ -28,67 +32,13 @@ const LOCATION: [[u32; Y_SIZE as usize]; X_SIZE as usize] = [
     [0, 0, 0, 0, 0, 0, 1, 1, 0, 0],
 ];
 
-const AGENT_START: Vec2 = Vec2::new(0., 0.);
-const TARGET: Vec2 = Vec2::new(9., 9.);
-
-
-const CELL_SIZE: f32 = 50.;
-const GRID_SIZE: Vec2 = Vec2::new(X_SIZE as f32, Y_SIZE as f32);
-
-
-const GRID_HALF_SIZE: Vec2 = Vec2::new(X_SIZE as f32 * CELL_SIZE / 2., Y_SIZE as f32 * CELL_SIZE / 2.);
-
-const ORTOGONAL_COST: u32 = 10;
-const DIAGONAL_COST: u32 = 14;
-
-
-#[derive(Debug, Clone, Copy)]
-struct Cell {
-    cost: u32,
-    goal_distance: u32, // эврестическое приближение
-    direction: u8, // 0 = unknown, 1 - 8 = directions
-    // position: Vec2,
-}
-
-impl Cell {
-    fn get_total_cost(&self) -> u32 {
-        self.cost + self.goal_distance
-    }
-}
-
-
-#[derive(Resource, Debug, Clone)]
-struct Meta {
-    age: u32,
-
-    start: Vec2,
-    target: Vec2,
-
-    open_array: Vec<Vec2>,
-    closed_array: Vec<Vec2>,
-    cell_map: HashMap<(i32,i32), Cell>,
-
-    finished: bool,
-}
-
-impl Default for Meta {
-    fn default() -> Self {
-        Self {
-            finished: false,
-            age: 0,
-            open_array: vec![],
-            closed_array: vec![],
-            cell_map: HashMap::new(),
-            start: AGENT_START,
-            target: TARGET,
-        }
-    }
-}
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .init_resource::<Meta>()
+        .insert_resource(
+            PathFinding::new(START, TARGET, get_location(), X_SIZE, Y_SIZE)
+        )
         .add_systems(Startup, setup)
 
         .add_systems(Startup, setup_buttons)
@@ -128,11 +78,11 @@ fn setup_scoreboard(mut commands: Commands) {
 }
 
 fn scoreboard_system(
-    mut query: Query<&mut Text, With<Scoreboard>>,
-    meta: Res<Meta>
+    // mut query: Query<&mut Text, With<Scoreboard>>,
+    // path: Res<PathFinding>
 ) {
-    let mut text = query.single_mut();
-    text.sections[0].value = format!("Age: {}", meta.age);
+    // let mut text = query.single_mut();
+    // text.sections[0].value = format!("Age: {}", path.age);
 }
 
 fn setup_buttons(
@@ -177,196 +127,9 @@ fn setup_buttons(
         });
 }
 
-fn get_goal_distance(from: &Vec2, to: &Vec2) -> u32 {
-    let dx = (from.x - to.x).abs();
-    let dy = (from.y - to.y).abs();
-    (dx + dy) as u32 * 10
-}
-
-fn get_best_cell(meta: &Meta) -> Option<Vec2> {
-    if meta.open_array.len() == 0 {
-        return None;
-    }
-    if meta.open_array.len() == 1 {
-        return Some(meta.open_array[0]);
-    }
-
-    let mut best_possition: Vec2 = meta.open_array[0];
-    for possition in &meta.open_array {
-        let cell = meta.cell_map.get(&vec2_to_index(possition));
-        let best_cell = meta.cell_map.get(&vec2_to_index(&best_possition));
-        
-        if let Some(cell) = cell {
-            if cell.get_total_cost() < best_cell.unwrap().get_total_cost() {
-                best_possition = possition.clone();
-            }
-        }
-    }
-    return Some(best_possition);
-}
 
 fn vec2_to_index(vec2: &Vec2) -> (i32, i32) {
     (vec2.x as i32, vec2.y as i32)
-}
-
-fn get_direction(
-    from: &Vec2,
-    to: &Vec2
-) -> u8 {
-
-    // 1 2 3
-    // 4 0 5
-    // 6 7 8
-    
-    if from == to {
-        return 0;
-    }
-
-    let top = from.y < to.y;
-    let bottom = from.y > to.y;
-    let right = from.x < to.x;
-    let left = from.x > to.x;
-
-    if top {
-        if left {
-            return 1;
-        }
-        if right {
-            return 3;
-        }
-        return 2;
-    }
-    if bottom {
-        if left {
-            return 6;
-        }
-        if right {
-            return 8;
-        }
-        return 7;
-    }
-    if left {
-        return 4;
-    }
-    if right {
-        return 5;
-    }
-    return 0;
-}
-
-fn get_cost_by_direction(
-    direction: u8
-) -> u32 {
-    match direction {
-        1 | 3 | 5 | 7 => DIAGONAL_COST,
-        2 | 4 | 6 | 8 => ORTOGONAL_COST,
-        _ => 0,
-    }
-}
-
-fn scan_neighbours(
-    possition_to_scan: Vec2,
-    meta: &mut Meta
-) {
-    // TODO create 8 neighbours
-    let neighbours_possitions = vec![
-        Vec2::new(possition_to_scan.x - 1., possition_to_scan.y + 1.), // top left
-        Vec2::new(possition_to_scan.x, possition_to_scan.y + 1.),      // top
-        Vec2::new(possition_to_scan.x + 1., possition_to_scan.y + 1.), // top right
-
-        Vec2::new(possition_to_scan.x - 1., possition_to_scan.y),      // left
-        Vec2::new(possition_to_scan.x + 1., possition_to_scan.y),      // right
-
-        Vec2::new(possition_to_scan.x - 1., possition_to_scan.y - 1.), // bottom left
-        Vec2::new(possition_to_scan.x, possition_to_scan.y - 1.),      // bottom
-        Vec2::new(possition_to_scan.x + 1., possition_to_scan.y - 1.), // bottom right
-        
-    ];
-    
-    let current_cell = meta.cell_map.get(&vec2_to_index(&possition_to_scan));    
-    let Some(current_cell) = current_cell else {
-        panic!("Current cell is not found");
-
-        // return;
-    };
-    let current_cell = current_cell.clone();
-
-    // for each neighbour create cell
-    // if cell already exists update it if cost is less
-    // if cell is new - add it to open array
-    for neighbour in neighbours_possitions {
-        // if WALL_CELLS.contains(&(neighbour.x as i32, neighbour.y as i32)) {
-        //     continue;
-        // }
-        println!("neighbour: {:?}", neighbour);
-
-        if neighbour.x < 0. || neighbour.x >= X_SIZE as f32 || neighbour.y < 0. || neighbour.y >= Y_SIZE as f32 {
-            continue;
-        }
-
-        let location = get_location();
-        if location[neighbour.y as usize][neighbour.x as usize] == 1 {
-            continue;
-        }
-
-        let neighbour_index = vec2_to_index(&neighbour);
-        let neighbour_cell = meta.cell_map.get(&neighbour_index);
-
-        
-        let new_direction = get_direction(&neighbour, &possition_to_scan);
-        // let new_goal_distance = get_goal_distance(&neighbour, &meta.target);
-        let goal_distance = get_goal_distance(&neighbour, &meta.target);
-
-        if goal_distance == 0 {
-            
-            // TODO move current cell to closed array from open array
-            meta.closed_array.push(possition_to_scan);
-            meta.closed_array.push(TARGET);
-            meta.open_array.retain(|&x| x != possition_to_scan);
-            meta.finished = true;
-
-            let final_cell = Cell {
-                cost: current_cell.cost + get_cost_by_direction(new_direction),
-                goal_distance,
-                direction: get_direction(&neighbour, &possition_to_scan),
-            };
-
-            // println!("neighbour: {:?} possition_to_scan: {:?}", neighbour, possition_to_scan);
-            println!("Final cell: {:?}", final_cell);
-
-            meta.cell_map.insert(vec2_to_index(&TARGET), final_cell);
-
-            println!("Path found");
-            return;
-        }
-
-
-
-        let new_cost = get_cost_by_direction(new_direction);
-        let new_cell = Cell {
-            cost: current_cell.cost + new_cost, // cost of possition_to_scan + direction cost
-            goal_distance,
-            direction: new_direction,
-        };
-
-
-        if let Some(neighbour_cell) = neighbour_cell {
-            if new_cell.get_total_cost() < neighbour_cell.get_total_cost() {
-                meta.cell_map.insert(neighbour_index, new_cell);
-            }
-        } else {
-            meta.cell_map.insert(neighbour_index, new_cell);
-            meta.open_array.push(neighbour);
-        }
-    }
-
-    // TODO move current cell to closed array from open array
-    meta.closed_array.push(possition_to_scan);
-    meta.open_array.retain(|&x| x != possition_to_scan);
-
-    // let meta = meta.clone();
-
-    println!("Direction: {:?} ", meta.cell_map.get(&vec2_to_index(&possition_to_scan)));
 }
 
 fn button_system(
@@ -374,44 +137,28 @@ fn button_system(
         &Interaction,
         (Changed<Interaction>, With<Button>),
     >,
-    mut meta: ResMut<Meta>,
+    mut path: ResMut<PathFinding>,
+    time: Res<Time>,
 ) {
-    for interaction in &mut interaction_query {
-        if *interaction == Interaction::Pressed {
+    // for interaction in &mut interaction_query {
+    //     if *interaction == Interaction::Pressed {
             
-            if meta.finished {
-                println!("Path already found");
-                return;
-            }
+    //         if path.finished {
+    //             println!("Path already found");
+    //             return;
+    //         }
+            // path.scan_neighbours();
+    //     }
+    // }
 
-            let current_cell: Vec2;
-            if meta.open_array.len() == 0 {
-                let start_cell = Cell {
-                    cost: 0,
-                    goal_distance: get_goal_distance(&AGENT_START, &TARGET),
-                    direction: 0,
-                };
-                meta.open_array.push(AGENT_START);
-                meta.cell_map.insert(vec2_to_index(&AGENT_START), start_cell);
-
-                current_cell = AGENT_START;
-            } else {
-                let best_cell = get_best_cell(&meta);
-                if let Some(best_cell) = best_cell {
-                    current_cell = best_cell;
-                } else {
-                    return;
-                }
-            }
-
-            scan_neighbours(
-                current_cell,
-                &mut meta
-            );
-
-            meta.age += 1;
-        }
+    // TODO each 100ms do path.scan_neighbours();
+    // if time. % 0.1 < 0.01 {
+        println!("Time: {}", time.elapsed_seconds() % 0.2);
+    if time.elapsed_seconds() % 0.2 < 0.1 {
+        path.scan_neighbours();
     }
+    // }
+
 }
 
 fn button_style(
@@ -451,10 +198,11 @@ fn setup(
 }
 
 fn render_agent(
-    mut gizmos: Gizmos
+    mut gizmos: Gizmos,
+    path: Res<PathFinding>
 ) {
     gizmos.rect_2d(
-        AGENT_START * CELL_SIZE - GRID_HALF_SIZE,
+        path.start * CELL_SIZE - GRID_HALF_SIZE,
         0.,
         Vec2::splat(CELL_SIZE - 7.),
         Color::Rgba { red: 0.5, green: 0.5, blue: 0.9, alpha: 1. },
@@ -469,9 +217,9 @@ fn render_agent(
 
 fn render_arrays(
     mut gizmos: Gizmos,
-    meta: Res<Meta>
+    path: Res<PathFinding>
 ) {
-    for &possition in &meta.open_array {
+    for &possition in &path.open_array {
         gizmos.rect_2d(
             possition * CELL_SIZE - GRID_HALF_SIZE,
             0.,
@@ -479,7 +227,7 @@ fn render_arrays(
             Color::Rgba { red: 0.9, green: 0.9, blue: 0.5, alpha: 1. },
         );
     }
-    for &possition in &meta.closed_array {
+    for &possition in &path.closed_array {
         gizmos.rect_2d(
             possition * CELL_SIZE - GRID_HALF_SIZE,
             0.,
@@ -489,10 +237,10 @@ fn render_arrays(
     }
 
     // TODO combine open and closed arrays
-    let all_positions = meta.closed_array.iter();
-    // let all_positions = meta.open_array.iter().chain(meta.closed_array.iter());
+    let all_positions = path.closed_array.iter();
+    // let all_positions = path.open_array.iter().chain(path.closed_array.iter());
     for possition in all_positions {
-        let cell = meta.cell_map.get(&vec2_to_index(&possition));
+        let cell = path.cell_map.get(&vec2_to_index(&possition));
         if let Some(cell) = cell {
             // TODO depend of direction - render arrow in direction
             let start = *possition * CELL_SIZE - GRID_HALF_SIZE;
@@ -524,11 +272,11 @@ fn render_arrays(
         }
     };
 
-    if meta.finished {
+    if path.finished {
         let path = get_path(
             &TARGET,
             &mut vec![],
-            &meta
+            &path
         );
         
         for cell in path {
@@ -546,17 +294,17 @@ fn render_arrays(
 fn get_path(
     &from: &Vec2,
     current_path: &mut Vec<Vec2>,
-    meta: &Meta
+    path: &PathFinding
 ) -> Vec<Vec2> {
-    if !meta.finished {
+    if !path.finished {
         return vec![];
     }
-    if from == AGENT_START {
+    if from == path.start {
         return (&current_path).to_vec();
     }
 
     // TODO get cell depending of direction of FROM cell
-    let from_cell = meta.cell_map.get(&vec2_to_index(&from));
+    let from_cell = path.cell_map.get(&vec2_to_index(&from));
     let Some(from_cell) = from_cell else {
         return (&current_path).to_vec();
     };
@@ -579,13 +327,13 @@ fn get_path(
     return get_path(
         &next_cell,
         current_path,
-        meta
+        path
     );
 
 }
 
-fn get_location() -> [[u32; 10]; 10] {
-    let mut copy = LOCATION.clone();
+fn get_location() -> Vec<Vec<u32>> {
+    let mut copy: Vec<Vec<u32>> = LOCATION.iter().map(|row| row.to_vec()).collect();
     copy.reverse();
     copy
 }
@@ -593,23 +341,11 @@ fn get_location() -> [[u32; 10]; 10] {
 fn render_walls(
     mut gizmos: Gizmos
 ) {
-    // let wall_cells = WALL_CELLS.iter().map(|&(x, y)| Vec2::new(x as f32, y as f32)).collect::<Vec<_>>();
-    // for cell in wall_cells {
-    //     gizmos.rect_2d(
-    //         cell * CELL_SIZE - GRID_HALF_SIZE,
-    //         0.,
-    //         Vec2::splat(CELL_SIZE - 7.),
-    //         Color::Rgba { red: 0.2, green: 0.8, blue: 0.5, alpha: 1. },
-    //     );
-    // }
     
     let location = get_location();
 
-    // TODO check walls array
     for y in 0..Y_SIZE {
         for x in 0..X_SIZE {
-            // TODO reverse first layer of array (LOCATION[y as usize].reverse())
-            
             if location[y as usize][x as usize] == 1 {
                 gizmos.rect_2d(
                     Vec2::new(x as f32, y as f32) * CELL_SIZE - GRID_HALF_SIZE,
@@ -637,5 +373,3 @@ fn render_grid(
         }
     }
 }
-
-// TODO a* pathfinding
