@@ -1,7 +1,6 @@
 
 use bevy::prelude::*;
 
-
 mod path_finding;
 
 use path_finding::*;
@@ -133,30 +132,30 @@ fn vec2_to_index(vec2: &Vec2) -> (u32, u32) {
 }
 
 fn button_system(
-    mut interaction_query: Query<
+    interaction_query: Query<
         &Interaction,
         (Changed<Interaction>, With<Button>),
     >,
     mut path: ResMut<PathFinding>,
     time: Res<Time>,
 ) {
-    // for interaction in &mut interaction_query {
+    // for interaction in &interaction_query {
     //     if *interaction == Interaction::Pressed {
             
     //         if path.finished {
     //             println!("Path already found");
     //             return;
     //         }
-            // path.scan_neighbours();
+    //         path.scan_neighbours();
     //     }
     // }
 
     // TODO each 100ms do path.scan_neighbours();
     // if time. % 0.1 < 0.01 {
-        println!("Time: {}", time.elapsed_seconds() % 0.2);
-    if time.elapsed_seconds() % 0.2 < 0.1 {
+    // println!("Time: {}", time.elapsed_seconds() % 0.2);
+    // if time.elapsed_seconds() % 0.05 < 0.01 {
         path.scan_neighbours();
-    }
+    // }
     // }
 
 }
@@ -202,7 +201,6 @@ fn render_agent(
     path: Res<PathFinding>
 ) {
     gizmos.rect_2d(
-        // path.start * CELL_SIZE - GRID_HALF_SIZE,
         Vec2::new(path.start.0 as f32, path.start.1 as f32) * CELL_SIZE - GRID_HALF_SIZE,
         0.,
         Vec2::splat(CELL_SIZE - 7.),
@@ -222,7 +220,6 @@ fn render_arrays(
 ) {
     for &pos in &path.open_array {
         gizmos.rect_2d(
-            // possition * CELL_SIZE - GRID_HALF_SIZE,
             Vec2::new(pos.0 as f32, pos.1 as f32) * CELL_SIZE - GRID_HALF_SIZE,
             0.,
             Vec2::splat(CELL_SIZE - 7.),
@@ -238,7 +235,6 @@ fn render_arrays(
         );
     }
 
-    // TODO combine open and closed arrays
     let all_positions = path.closed_array.iter();
     // let all_positions = path.open_array.iter().chain(path.closed_array.iter());
     for pos in all_positions {
@@ -283,7 +279,6 @@ fn render_arrays(
         
         for pos in path {
             gizmos.rect_2d(
-                // cell * CELL_SIZE - GRID_HALF_SIZE,
                 Vec2::new(pos.0 as f32, pos.1 as f32) * CELL_SIZE - GRID_HALF_SIZE,
                 0.,
                 Vec2::splat(CELL_SIZE - 15.),
@@ -303,13 +298,12 @@ fn get_path(
         return vec![];
     }
     if from == path.start {
-        return (&current_path).to_vec();
+        return current_path.to_vec();
     }
 
-    // TODO get cell depending of direction of FROM cell
     let from_cell = path.cell_map.get(&from);
     let Some(from_cell) = from_cell else {
-        return (&current_path).to_vec();
+        return current_path.to_vec();
     };
     let direction = from_cell.direction;
     let new_pos: (i32, i32) = match direction {
