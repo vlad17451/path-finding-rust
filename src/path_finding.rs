@@ -20,8 +20,6 @@ impl Cell {
 #[derive(Resource, Debug, Clone)]
 pub struct PathFinding {
 
-    // aria: 
-
     pub height: u32,
     pub width: u32,
 
@@ -36,14 +34,14 @@ pub struct PathFinding {
 
     pub path: Vec<(u32, u32)>,
 
-    pub location: Vec<Vec<u32>>,
+    pub walls: Vec<Vec<u32>>,
 }
 
 impl PathFinding {
     pub fn new(
         start: (u32, u32),
         target: (u32, u32),
-        location: Vec<Vec<u32>>,
+        walls: Vec<Vec<u32>>,
         height: u32,
         width: u32,
     ) -> Self {
@@ -52,7 +50,7 @@ impl PathFinding {
             height,
             width,
             finished: false,
-            location,
+            walls,
             open_array: vec![],
             closed_array: vec![],
             cell_map: HashMap::new(),
@@ -68,7 +66,7 @@ impl PathFinding {
         if out_of_bounds {
             return true;
         }
-        let is_wall = self.location[y as usize][x as usize] == 1;
+        let is_wall = self.walls[y as usize][x as usize] == 1;
         return is_wall;
     }
 
@@ -183,7 +181,6 @@ impl PathFinding {
             (x - 1, y - 1), // bottom left
             (x, y - 1),      // bottom
             (x + 1, y - 1), // bottom right
-            
         ];
         
         let current_cell = self.cell_map.get(&scan_pos);    

@@ -18,7 +18,7 @@ const GRID_SIZE: Vec2 = Vec2::new(X_SIZE as f32, Y_SIZE as f32);
 
 const GRID_HALF_SIZE: Vec2 = Vec2::new(X_SIZE as f32 * CELL_SIZE / 2., Y_SIZE as f32 * CELL_SIZE / 2.);
 
-const LOCATION: [[u32; Y_SIZE as usize]; X_SIZE as usize] = [
+const WALLS: [[u32; Y_SIZE as usize]; X_SIZE as usize] = [
     [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
     [0, 1, 1, 1, 1, 1, 0, 0, 1, 0],
     [0, 1, 0, 0, 0, 1, 1, 0, 1, 0],
@@ -30,13 +30,25 @@ const LOCATION: [[u32; Y_SIZE as usize]; X_SIZE as usize] = [
     [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 1, 1, 0, 0],
 ];
+// const WALLS: [[u32; Y_SIZE as usize]; X_SIZE as usize] = [
+//     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+//     [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+//     [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+//     [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+//     [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+//     [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+//     [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+//     [0, 0, 0, 1, 1, 1, 1, 1, 1, 0],
+//     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+//     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+// ];
 
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .insert_resource(
-            PathFinding::new(vec2_to_index(&START), vec2_to_index(&TARGET), get_location(), X_SIZE, Y_SIZE)
+            PathFinding::new(vec2_to_index(&START), vec2_to_index(&TARGET), get_walls(), X_SIZE, Y_SIZE)
         )
         .add_systems(Startup, setup)
 
@@ -158,7 +170,6 @@ fn button_system(
     // }
     // }
     path.generate();
-
 }
 
 fn button_style(
@@ -287,8 +298,8 @@ fn render_arrays(
 }
 
 
-fn get_location() -> Vec<Vec<u32>> {
-    let mut copy: Vec<Vec<u32>> = LOCATION.iter().map(|row| row.to_vec()).collect();
+fn get_walls() -> Vec<Vec<u32>> {
+    let mut copy: Vec<Vec<u32>> = WALLS.iter().map(|row| row.to_vec()).collect();
     copy.reverse();
     copy
 }
@@ -297,11 +308,11 @@ fn render_walls(
     mut gizmos: Gizmos
 ) {
     
-    let location = get_location();
+    let walls = get_walls();
 
     for y in 0..Y_SIZE {
         for x in 0..X_SIZE {
-            if location[y as usize][x as usize] == 1 {
+            if walls[y as usize][x as usize] == 1 {
                 gizmos.rect_2d(
                     Vec2::new(x as f32, y as f32) * CELL_SIZE - GRID_HALF_SIZE,
                     0.,
