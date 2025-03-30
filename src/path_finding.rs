@@ -8,7 +8,7 @@ const DIAGONAL_COST: f32 = 14.142;
 pub struct Cell {
     pub cost: f32,
     pub goal_distance: f32, // эврестическое приближение
-    pub direction: u8, // 0 = unknown, 1 - 8 = directions
+    pub direction: u8,      // 0 = unknown, 1 - 8 = directions
 }
 
 impl Cell {
@@ -19,7 +19,6 @@ impl Cell {
 
 #[derive(Resource, Debug, Clone)]
 pub struct PathFinding {
-
     pub height: u32,
     pub width: u32,
 
@@ -28,7 +27,7 @@ pub struct PathFinding {
 
     pub open_array: Vec<(u32, u32)>,
     pub closed_array: Vec<(u32, u32)>,
-    pub cell_map: HashMap<(u32,u32), Cell>,
+    pub cell_map: HashMap<(u32, u32), Cell>,
 
     pub finished: bool,
 
@@ -64,10 +63,10 @@ impl PathFinding {
         let y = pos.1;
         let out_of_bounds = x < 0 || x >= self.width as i32 || y < 0 || y >= self.height as i32;
         if out_of_bounds {
-            return true;
+            return false;
         }
         let is_wall = self.walls[y as usize][x as usize] == 1;
-        return is_wall;
+        return !is_wall;
     }
 
     fn get_best_cell(&self) -> Option<(u32, u32)> {
@@ -80,8 +79,12 @@ impl PathFinding {
                     let cell_to_check = self.cell_map.get(&pos_to_check);
                     let best_cell = self.cell_map.get(&best_pos);
 
-                    let Some(cell_to_check) = cell_to_check else { continue; };
-                    let Some(best_cell) = best_cell else { continue; };
+                    let Some(cell_to_check) = cell_to_check else {
+                        continue;
+                    };
+                    let Some(best_cell) = best_cell else {
+                        continue;
+                    };
 
                     if cell_to_check.get_total_cost() < best_cell.get_total_cost() {
                         best_pos = pos_to_check.clone();
@@ -93,23 +96,22 @@ impl PathFinding {
     }
 
     pub fn generate(&mut self) {
+        if !self.is_available((self.target.0 as i32, self.target.1 as i32)) {
+            return;
+        }
         while !self.finished {
             self.scan_neighbours();
         }
-    } 
+    }
 
-    fn get_path(
-        &self,
-        &from: &(u32, u32),
-        current_path: &mut Vec<(u32, u32)>
-    ) -> Vec<(u32, u32)> {
+    fn get_path(&self, &from: &(u32, u32), current_path: &mut Vec<(u32, u32)>) -> Vec<(u32, u32)> {
         if !self.finished {
             return vec![];
         }
         if from == self.start {
             return current_path.to_vec();
         }
-    
+
         let from_cell = self.cell_map.get(&from);
         let Some(from_cell) = from_cell else {
             return current_path.to_vec();
@@ -130,20 +132,13 @@ impl PathFinding {
             (from.0 as i32 + new_pos.0) as u32,
             (from.1 as i32 + new_pos.1) as u32,
         );
-    
-        current_path.push(next_cell);
-    
-        return self.get_path(
-            &next_cell,
-            current_path
-        );
-    
-    }
-    
 
-    pub fn scan_neighbours(
-        &mut self
-    ) {
+        current_path.push(next_cell);
+
+        return self.get_path(&next_cell, current_path);
+    }
+
+    pub fn scan_neighbours(&mut self) {
         if self.finished {
             return;
         }
@@ -172,34 +167,31 @@ impl PathFinding {
         let y = scan_pos.1 as i32;
         let neighbours = vec![
             (x - 1, y + 1), // top left
-            (x, y + 1),      // top
+            (x, y + 1),     // top
             (x + 1, y + 1), // top right
-    
-            (x - 1, y),      // left
-            (x + 1, y),      // right
-    
+            (x - 1, y),     // left
+            (x + 1, y),     // right
             (x - 1, y - 1), // bottom left
-            (x, y - 1),      // bottom
+            (x, y - 1),     // bottom
             (x + 1, y - 1), // bottom right
         ];
-        
-        let current_cell = self.cell_map.get(&scan_pos);    
+
+        let current_cell = self.cell_map.get(&scan_pos);
         let Some(current_cell) = current_cell else {
             panic!("Current cell is not found");
             // return;
         };
         let current_cell = current_cell.clone();
-    
-        for new_pos in neighbours {
 
-            if self.is_available(new_pos) {
+        for new_pos in neighbours {
+            if !self.is_available(new_pos) {
                 continue;
             }
             let new_pos = (new_pos.0 as u32, new_pos.1 as u32);
-    
+
             let new_direction = get_direction(&new_pos, &scan_pos);
             let new_direction_cost = get_cost_by_direction(new_direction);
- 
+
             let new_cell = Cell {
                 cost: current_cell.cost + new_direction_cost,
                 goal_distance: get_goal_distance(&new_pos, &self.target),
@@ -211,9 +203,8 @@ impl PathFinding {
                 self.closed_array.push(new_pos);
                 self.finished = true;
             }
-    
-            let neighbour_cell = self.cell_map.get(&new_pos);
 
+            let neighbour_cell = self.cell_map.get(&new_pos);
 
             let Some(neighbour_cell) = neighbour_cell else {
                 self.cell_map.insert(new_pos, new_cell);
@@ -225,7 +216,7 @@ impl PathFinding {
                 self.cell_map.insert(new_pos, new_cell);
             }
         }
-    
+
         self.closed_array.push(scan_pos);
         self.open_array.retain(|&x| x != scan_pos);
 
@@ -234,8 +225,13 @@ impl PathFinding {
         }
 
         if self.finished {
-            self.path = self.get_path(&self.target, &mut vec![]);
+            self.path = self.get_path(&self.target, &mut vec![self.target]);
+            // println!("Path found: {:?}", self.path);
         }
+    }
+
+    pub fn next_step(&mut self) {
+        self.path.pop();
     }
 }
 
@@ -245,9 +241,7 @@ fn get_goal_distance(from: &(u32, u32), to: &(u32, u32)) -> f32 {
     (dx + dy) as f32 * ORTOGONAL_COST
 }
 
-fn get_cost_by_direction(
-    direction: u8
-) -> f32 {
+fn get_cost_by_direction(direction: u8) -> f32 {
     match direction {
         1 | 3 | 6 | 8 => DIAGONAL_COST,
         2 | 4 | 5 | 7 => ORTOGONAL_COST,
@@ -255,19 +249,15 @@ fn get_cost_by_direction(
     }
 }
 
-fn get_direction(
-    from: &(u32, u32),
-    to: &(u32, u32)
-) -> u8 {
-
+fn get_direction(from: &(u32, u32), to: &(u32, u32)) -> u8 {
     // 1 2 3
     // 4 0 5
     // 6 7 8
-    
+
     if from == to {
         return 0;
     }
-    
+
     let top = from.1 < to.1;
     let bottom = from.1 > to.1;
     let right = from.0 < to.0;
