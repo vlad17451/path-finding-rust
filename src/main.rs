@@ -7,7 +7,7 @@ use path_finding::*;
 const X_SIZE: u32 = 10;
 const Y_SIZE: u32 = 10;
 
-const START: Vec2 = Vec2::new(2., 1.);
+const START: Vec2 = Vec2::new(4., 0.7);
 const TARGET: Vec2 = Vec2::new(9., 9.);
 
 const CELL_SIZE: f32 = 50.;
@@ -163,7 +163,7 @@ fn setup_buttons(mut commands: Commands) {
 }
 
 fn vec2_to_index(vec2: &Vec2) -> (u32, u32) {
-    (vec2.x as u32, vec2.y as u32)
+    (vec2.x.round() as u32, vec2.y.round() as u32)
 }
 
 fn button_system(
@@ -197,8 +197,8 @@ fn button_system(
 
     gizmos.circle_2d(point, 10., Color::WHITE);
 
-    let x = ((point.x + GRID_HALF_SIZE.x) / CELL_SIZE + 0.5).floor() as u32;
-    let y = ((point.y + GRID_HALF_SIZE.y) / CELL_SIZE + 0.5).floor() as u32;
+    let x = ((point.x + GRID_HALF_SIZE.x) / CELL_SIZE).round() as u32;
+    let y = ((point.y + GRID_HALF_SIZE.y) / CELL_SIZE).round() as u32;
     // println!("Point: {:?} {:?}", x, y);
 
     let mut path_finding = PathFinding::new(
@@ -435,7 +435,7 @@ fn unit_system(mut unit: ResMut<Unit>, time: Res<Time>) {
         )
     };
 
-    let speed = 0.5 * time.delta_seconds();
+    let speed = 3.5 * time.delta_seconds();
     let x_diff = next_step.0 as f32 - unit.pos.x;
     let y_diff = next_step.1 as f32 - unit.pos.y;
     let distance = (x_diff.powi(2) + y_diff.powi(2)).sqrt();
