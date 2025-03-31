@@ -1,5 +1,6 @@
 use bevy::prelude::*;
-use std::collections::HashMap;
+use std::cmp::Ordering;
+use std::collections::{BinaryHeap, HashMap, HashSet};
 
 const ORTOGONAL_COST: f32 = 10.;
 const DIAGONAL_COST: f32 = 14.142;
@@ -17,6 +18,23 @@ impl Cell {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct OrderedFloat(f32);
+
+impl PartialOrd for OrderedFloat {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.0.partial_cmp(&other.0)
+    }
+}
+
+impl Eq for OrderedFloat {}
+
+impl Ord for OrderedFloat {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).unwrap_or(Ordering::Equal)
+    }
+}
+
 #[derive(Resource, Debug, Clone)]
 pub struct PathFinding {
     pub height: u32,
@@ -25,10 +43,11 @@ pub struct PathFinding {
     pub start: (u32, u32),
     pub target: (u32, u32),
 
-    pub open_array: Vec<(u32, u32)>,
-    pub closed_array: Vec<(u32, u32)>,
+    pub open_array: BinaryHeap<(OrderedFloat, (u32, u32))>, // (cost, position)
+    pub closed_array: HashSet<(u32, u32)>,
     pub cell_map: HashMap<(u32, u32), Cell>,
 
+    pub removed_nodes: HashSet<(u32, u32)>, // TODO
     pub finished: bool,
 
     pub path: Vec<(u32, u32)>,
@@ -50,8 +69,9 @@ impl PathFinding {
             width,
             finished: false,
             walls,
-            open_array: vec![],
-            closed_array: vec![],
+            open_array: BinaryHeap::new(),
+            closed_array: HashSet::new(),
+            removed_nodes: HashSet::new(),
             cell_map: HashMap::new(),
             start,
             target,
@@ -69,38 +89,25 @@ impl PathFinding {
         return !is_wall;
     }
 
-    fn get_best_cell(&self) -> Option<(u32, u32)> {
-        match self.open_array.len() {
-            0 => None,
-            1 => Some(self.open_array[0]),
-            _ => {
-                let mut best_pos: (u32, u32) = self.open_array[0];
-                for pos_to_check in &self.open_array {
-                    let cell_to_check = self.cell_map.get(&pos_to_check);
-                    let best_cell = self.cell_map.get(&best_pos);
-
-                    let Some(cell_to_check) = cell_to_check else {
-                        continue;
-                    };
-                    let Some(best_cell) = best_cell else {
-                        continue;
-                    };
-
-                    if cell_to_check.get_total_cost() < best_cell.get_total_cost() {
-                        best_pos = pos_to_check.clone();
-                    }
-                }
-                return Some(best_pos);
-            }
-        }
+    fn push_to_open_set(&mut self, cost: f32, pos: (u32, u32)) {
+        // Negate cost to convert max-heap to min-heap behavior
+        self.open_array.push((OrderedFloat(-cost), pos));
     }
 
     pub fn generate(&mut self) {
+        if self.start == self.target {
+            self.finished = true;
+            self.path = vec![self.start];
+            return;
+        }
         if !self.is_available((self.target.0 as i32, self.target.1 as i32)) {
             return;
         }
-        while !self.finished {
+        let max_iterations = self.width * self.height;
+        let mut iterations = 0;
+        while !self.finished && iterations < max_iterations {
             self.scan_neighbours();
+            iterations += 1;
         }
     }
 
@@ -139,30 +146,27 @@ impl PathFinding {
     }
 
     pub fn scan_neighbours(&mut self) {
-        if self.finished {
+        if self.finished || self.open_array.is_empty() {
             return;
         }
 
-        let scan_pos: (u32, u32);
-        if self.open_array.len() == 0 {
+        let scan_pos = if self.open_array.is_empty() {
             let start_cell = Cell {
                 cost: 0.,
                 goal_distance: get_goal_distance(&self.start, &self.target),
                 direction: 0,
             };
-            self.open_array.push(self.start);
             self.cell_map.insert(self.start, start_cell);
-
-            scan_pos = self.start;
+            self.push_to_open_set(start_cell.get_total_cost(), self.start);
+            self.start
         } else {
-            let best_cell = self.get_best_cell();
-            let Some(best_cell) = best_cell else {
+            let Some((_, pos)) = self.open_array.pop() else {
                 return;
             };
-            scan_pos = best_cell;
-        }
+            pos
+        };
 
-        // TODO create 8 neighbours
+        // Get neighbors
         let x = scan_pos.0 as i32;
         let y = scan_pos.1 as i32;
         let neighbours = vec![
@@ -176,18 +180,19 @@ impl PathFinding {
             (x + 1, y - 1), // bottom right
         ];
 
-        let current_cell = self.cell_map.get(&scan_pos);
-        let Some(current_cell) = current_cell else {
-            panic!("Current cell is not found");
-            // return;
+        let Some(current_cell) = self.cell_map.get(&scan_pos).cloned() else {
+            return;
         };
-        let current_cell = current_cell.clone();
 
         for new_pos in neighbours {
             if !self.is_available(new_pos) {
                 continue;
             }
             let new_pos = (new_pos.0 as u32, new_pos.1 as u32);
+
+            if self.closed_array.contains(&new_pos) {
+                continue;
+            }
 
             let new_direction = get_direction(&new_pos, &scan_pos);
             let new_direction_cost = get_cost_by_direction(new_direction);
@@ -198,47 +203,48 @@ impl PathFinding {
                 direction: new_direction,
             };
 
-            let target_found = new_cell.goal_distance == 0.;
-            if target_found {
-                self.closed_array.push(new_pos);
+            // Check if target is found
+            if new_pos == self.target {
+                self.cell_map.insert(new_pos, new_cell);
+                self.closed_array.insert(scan_pos);
                 self.finished = true;
+                break;
             }
 
-            let neighbour_cell = self.cell_map.get(&new_pos);
-
-            let Some(neighbour_cell) = neighbour_cell else {
-                self.cell_map.insert(new_pos, new_cell);
-                self.open_array.push(new_pos);
-                continue;
-            };
-
-            if new_cell.get_total_cost() < neighbour_cell.get_total_cost() {
-                self.cell_map.insert(new_pos, new_cell);
+            // Update cell if it's better than existing one
+            match self.cell_map.get(&new_pos) {
+                Some(existing_cell) => {
+                    let existing_total_cost = existing_cell.get_total_cost();
+                    let new_total_cost = new_cell.get_total_cost();
+                    if new_total_cost >= existing_total_cost {
+                        continue;
+                    }
+                    // Remove the old entry from open_array before adding the new one
+                    self.open_array.retain(|(_, pos)| pos != &new_pos);
+                    self.cell_map.insert(new_pos, new_cell);
+                    self.push_to_open_set(new_total_cost, new_pos);
+                }
+                None => {
+                    self.cell_map.insert(new_pos, new_cell);
+                    self.push_to_open_set(new_cell.get_total_cost(), new_pos);
+                }
             }
         }
 
-        self.closed_array.push(scan_pos);
-        self.open_array.retain(|&x| x != scan_pos);
-
-        if self.open_array.len() == 0 {
-            self.finished = true;
-        }
+        self.closed_array.insert(scan_pos);
 
         if self.finished {
             self.path = self.get_path(&self.target, &mut vec![self.target]);
-            // println!("Path found: {:?}", self.path);
         }
-    }
-
-    pub fn next_step(&mut self) {
-        self.path.pop();
     }
 }
 
 fn get_goal_distance(from: &(u32, u32), to: &(u32, u32)) -> f32 {
-    let dx = (from.0 as i32 - to.0 as i32).abs();
-    let dy = (from.1 as i32 - to.1 as i32).abs();
-    (dx + dy) as f32 * ORTOGONAL_COST
+    let dx = (from.0 as i32 - to.0 as i32).abs() as f32;
+    let dy = (from.1 as i32 - to.1 as i32).abs() as f32;
+    let diagonal = dx.min(dy);
+    let straight = (dx - diagonal).abs() + (dy - diagonal).abs();
+    diagonal * DIAGONAL_COST + straight * ORTOGONAL_COST
 }
 
 fn get_cost_by_direction(direction: u8) -> f32 {

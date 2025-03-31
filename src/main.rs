@@ -4,19 +4,34 @@ mod path_finding;
 
 use path_finding::*;
 
+// const X_SIZE: u32 = 20; // Doubled from 10
+// const Y_SIZE: u32 = 20; // Doubled from 10
+
+// const WALLS: [[u32; Y_SIZE as usize]; X_SIZE as usize] = [
+//     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+//     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+//     [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+//     [0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+//     [0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+//     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+//     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+//     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+//     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+//     [0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+//     [0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+//     [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+//     [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+//     [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+//     [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+//     [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+//     [0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+//     [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+//     [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+//     [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+// ];
+
 const X_SIZE: u32 = 10;
 const Y_SIZE: u32 = 10;
-
-const START: Vec2 = Vec2::new(4., 0.7);
-const TARGET: Vec2 = Vec2::new(9., 9.);
-
-const CELL_SIZE: f32 = 50.;
-const GRID_SIZE: Vec2 = Vec2::new(X_SIZE as f32, Y_SIZE as f32);
-
-const GRID_HALF_SIZE: Vec2 = Vec2::new(
-    X_SIZE as f32 * CELL_SIZE / 2.,
-    Y_SIZE as f32 * CELL_SIZE / 2.,
-);
 
 const WALLS: [[u32; Y_SIZE as usize]; X_SIZE as usize] = [
     [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
@@ -30,6 +45,7 @@ const WALLS: [[u32; Y_SIZE as usize]; X_SIZE as usize] = [
     [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
     [0, 0, 0, 0, 0, 0, 1, 1, 0, 0],
 ];
+
 // const WALLS: [[u32; Y_SIZE as usize]; X_SIZE as usize] = [
 //     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 //     [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
@@ -42,6 +58,17 @@ const WALLS: [[u32; Y_SIZE as usize]; X_SIZE as usize] = [
 //     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 //     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 // ];
+
+const START: Vec2 = Vec2::new(4., 0.7);
+const TARGET: Vec2 = Vec2::new(9., 9.);
+
+const CELL_SIZE: f32 = 50.;
+const GRID_SIZE: Vec2 = Vec2::new(X_SIZE as f32, Y_SIZE as f32);
+
+const GRID_HALF_SIZE: Vec2 = Vec2::new(
+    X_SIZE as f32 * CELL_SIZE / 2.,
+    Y_SIZE as f32 * CELL_SIZE / 2.,
+);
 
 #[derive(Resource)]
 struct Unit {
@@ -298,7 +325,7 @@ fn render_arrays(
     let Some(path_finding) = &unit.path_finding else {
         return;
     };
-    for &pos in &path_finding.open_array {
+    for &(_, pos) in &path_finding.open_array {
         gizmos.rect_2d(
             Vec2::new(pos.0 as f32, pos.1 as f32) * CELL_SIZE - GRID_HALF_SIZE,
             0.,
