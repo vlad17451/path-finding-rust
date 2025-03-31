@@ -103,6 +103,15 @@ impl PathFinding {
         if !self.is_available((self.target.0 as i32, self.target.1 as i32)) {
             return;
         }
+
+        let start_cell = Cell {
+            cost: 0.,
+            goal_distance: get_goal_distance(&self.start, &self.target),
+            direction: 0,
+        };
+        self.cell_map.insert(self.start, start_cell);
+        self.push_to_open_set(start_cell.get_total_cost(), self.start);
+
         let max_iterations = self.width * self.height;
         let mut iterations = 0;
         while !self.finished && iterations < max_iterations {
