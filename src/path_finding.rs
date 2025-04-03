@@ -47,7 +47,6 @@ pub struct PathFinding {
     pub closed_array: HashSet<(u32, u32)>,
     pub cell_map: HashMap<(u32, u32), Cell>,
 
-    pub removed_nodes: HashSet<(u32, u32)>, // TODO
     pub finished: bool,
 
     pub path: Vec<(u32, u32)>,
@@ -71,7 +70,6 @@ impl PathFinding {
             walls,
             open_array: BinaryHeap::new(),
             closed_array: HashSet::new(),
-            removed_nodes: HashSet::new(),
             cell_map: HashMap::new(),
             start,
             target,
@@ -180,13 +178,13 @@ impl PathFinding {
         let y = scan_pos.1 as i32;
         let neighbours = vec![
             (x - 1, y + 1), // top left
-            (x, y + 1),     // top
             (x + 1, y + 1), // top right
+            (x - 1, y - 1), // bottom left
+            (x + 1, y - 1), // bottom right
+            (x, y + 1),     // top
             (x - 1, y),     // left
             (x + 1, y),     // right
-            (x - 1, y - 1), // bottom left
             (x, y - 1),     // bottom
-            (x + 1, y - 1), // bottom right
         ];
 
         let Some(current_cell) = self.cell_map.get(&scan_pos).cloned() else {
@@ -212,7 +210,7 @@ impl PathFinding {
                 direction: new_direction,
             };
 
-            // Check if target is found
+            // Check if the target is found
             if new_pos == self.target {
                 self.cell_map.insert(new_pos, new_cell);
                 self.closed_array.insert(scan_pos);
@@ -220,7 +218,7 @@ impl PathFinding {
                 break;
             }
 
-            // Update cell if it's better than existing one
+            // Update the cell if the new path is better
             match self.cell_map.get(&new_pos) {
                 Some(existing_cell) => {
                     let existing_total_cost = existing_cell.get_total_cost();
@@ -252,7 +250,7 @@ fn get_goal_distance(from: &(u32, u32), to: &(u32, u32)) -> f32 {
     let dx = (from.0 as i32 - to.0 as i32).abs() as f32;
     let dy = (from.1 as i32 - to.1 as i32).abs() as f32;
     let diagonal = dx.min(dy);
-    let straight = (dx - diagonal).abs() + (dy - diagonal).abs();
+    let straight = dx + dy - 2.0 * diagonal;
     diagonal * DIAGONAL_COST + straight * ORTOGONAL_COST
 }
 
