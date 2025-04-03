@@ -4,65 +4,37 @@ mod path_finding;
 
 use path_finding::*;
 
-// const X_SIZE: u32 = 20; // Doubled from 10
-// const Y_SIZE: u32 = 20; // Doubled from 10
+const X_SIZE: u32 = 20;
+const Y_SIZE: u32 = 20;
 
-// const WALLS: [[u32; Y_SIZE as usize]; X_SIZE as usize] = [
-//     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-//     [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-//     [0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-//     [0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-//     [0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-//     [0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-// ];
-
-const X_SIZE: u32 = 10;
-const Y_SIZE: u32 = 10;
+const SPEED: f32 = 7.0; // cells per second
 
 const WALLS: [[u32; Y_SIZE as usize]; X_SIZE as usize] = [
-    [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-    [0, 1, 1, 1, 1, 1, 0, 0, 1, 0],
-    [0, 1, 0, 0, 0, 1, 1, 0, 1, 0],
-    [0, 0, 0, 0, 0, 1, 0, 0, 1, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-    [0, 1, 1, 1, 1, 1, 0, 0, 1, 0],
-    [0, 0, 0, 0, 0, 1, 1, 0, 1, 0],
-    [0, 0, 0, 0, 0, 0, 1, 0, 1, 0],
-    [0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 1, 1, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+    [0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+    [0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0],
+    [0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0],
+    [0, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+    [0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+    [0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0],
+    [0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0],
+    [0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0],
+    [0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 1, 0],
+    [0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 1, 0],
+    [0, 1, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0],
+    [0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+    [0, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+    [0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0],
+    [0, 1, 1, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0],
+    [0, 1, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 0, 1, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
 ];
 
-// const WALLS: [[u32; Y_SIZE as usize]; X_SIZE as usize] = [
-//     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-//     [0, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-//     [0, 0, 0, 1, 1, 1, 1, 1, 1, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-//     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-// ];
-
 const START: Vec2 = Vec2::new(4., 0.7);
-const TARGET: Vec2 = Vec2::new(9., 9.);
 
-const CELL_SIZE: f32 = 50.;
+const CELL_SIZE: f32 = 30.;
 const GRID_SIZE: Vec2 = Vec2::new(X_SIZE as f32, Y_SIZE as f32);
 
 const GRID_HALF_SIZE: Vec2 = Vec2::new(
@@ -72,8 +44,7 @@ const GRID_HALF_SIZE: Vec2 = Vec2::new(
 
 #[derive(Resource)]
 struct Unit {
-    target: Option<(u32, u32)>,
-    // path: Vec<(u32, u32)>,
+    // target: Option<(u32, u32)>,
     path_finding: Option<PathFinding>,
     pos: Vec2,
 }
@@ -81,15 +52,8 @@ struct Unit {
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
-        .insert_resource(PathFinding::new(
-            vec2_to_index(&START),
-            vec2_to_index(&TARGET),
-            get_walls(),
-            X_SIZE,
-            Y_SIZE,
-        ))
         .insert_resource(Unit {
-            target: None,
+            // target: None,
             path_finding: None,
             pos: START,
         })
@@ -98,10 +62,8 @@ fn main() {
         .add_systems(Update, button_style)
         .add_systems(FixedUpdate, button_system)
         .add_systems(Startup, setup_scoreboard)
-        .add_systems(Update, scoreboard_system)
         .add_systems(Update, render_grid)
         .add_systems(Update, render_walls)
-        .add_systems(Update, render_agent)
         .add_systems(Update, render_arrays)
         .add_systems(Update, render_unit)
         .add_systems(Update, unit_system)
@@ -133,19 +95,8 @@ fn render_unit(mut gizmos: Gizmos, unit: Res<Unit>) {
     gizmos.circle_2d(
         unit.pos * CELL_SIZE - GRID_HALF_SIZE,
         CELL_SIZE / 2. - 7.,
-        // Vec2::splat(CELL_SIZE - 7.),
-        Color::Rgba {
-            red: 0.5,
-            green: 0.5,
-            blue: 0.9,
-            alpha: 1.,
-        },
+        Color::rgba(0.5, 0.5, 0.9, 1.),
     );
-}
-
-fn scoreboard_system(mut query: Query<&mut Text, With<Scoreboard>>, path: Res<PathFinding>) {
-    // let mut text = query.single_mut();
-    // text.sections[0].value = format!("Age: {}", path.age);
 }
 
 fn setup_buttons(mut commands: Commands) {
@@ -200,7 +151,7 @@ fn button_system(
     buttons: Res<ButtonInput<MouseButton>>,
     mut gizmos: Gizmos,
     // mut cell_map: ResMut<CellMap>,
-    mut path: ResMut<PathFinding>,
+    // mut path: ResMut<PathFinding>,
     // time: Res<Time>,
     mut unit: ResMut<Unit>,
 ) {
@@ -292,36 +243,7 @@ fn setup(mut commands: Commands) {
     // TODO add button
 }
 
-fn render_agent(mut gizmos: Gizmos, path: Res<PathFinding>) {
-    gizmos.rect_2d(
-        Vec2::new(path.start.0 as f32, path.start.1 as f32) * CELL_SIZE - GRID_HALF_SIZE,
-        0.,
-        Vec2::splat(CELL_SIZE - 7.),
-        Color::Rgba {
-            red: 0.5,
-            green: 0.5,
-            blue: 0.9,
-            alpha: 1.,
-        },
-    );
-    gizmos.rect_2d(
-        TARGET * CELL_SIZE - GRID_HALF_SIZE,
-        0.,
-        Vec2::splat(CELL_SIZE - 7.),
-        Color::Rgba {
-            red: 0.9,
-            green: 0.4,
-            blue: 0.5,
-            alpha: 1.,
-        },
-    );
-}
-
-fn render_arrays(
-    mut gizmos: Gizmos,
-    // path: Res<PathFinding>
-    unit: Res<Unit>,
-) {
+fn render_arrays(mut gizmos: Gizmos, unit: Res<Unit>) {
     let Some(path_finding) = &unit.path_finding else {
         return;
     };
@@ -330,25 +252,28 @@ fn render_arrays(
             Vec2::new(pos.0 as f32, pos.1 as f32) * CELL_SIZE - GRID_HALF_SIZE,
             0.,
             Vec2::splat(CELL_SIZE - 7.),
-            Color::Rgba {
-                red: 0.9,
-                green: 0.9,
-                blue: 0.5,
-                alpha: 1.,
-            },
+            Color::rgba(1.0, 1.0, 1.0, 0.3),
         );
     }
+
+    let max_goal_distance = path_finding
+        .cell_map
+        .values()
+        .map(|c| c.goal_distance)
+        .fold(0.0 / 0.0, f32::max); // Get the maximum goal_distance
+
     for &pos in &path_finding.closed_array {
+        let Some(cell) = path_finding.cell_map.get(&pos) else {
+            continue;
+        };
+
+        let intensity = 1.0 - (cell.goal_distance / max_goal_distance).clamp(0.0, 1.0);
+
         gizmos.rect_2d(
             Vec2::new(pos.0 as f32, pos.1 as f32) * CELL_SIZE - GRID_HALF_SIZE,
             0.,
             Vec2::splat(CELL_SIZE - 7.),
-            Color::Rgba {
-                red: 0.9,
-                green: 0.5,
-                blue: 0.9,
-                alpha: 1.,
-            },
+            Color::rgb(1.0, intensity, 0.0),
         );
     }
 
@@ -390,12 +315,7 @@ fn render_arrays(
                 Vec2::new(pos.0 as f32, pos.1 as f32) * CELL_SIZE - GRID_HALF_SIZE,
                 0.,
                 Vec2::splat(CELL_SIZE - 15.),
-                Color::Rgba {
-                    red: 0.1,
-                    green: 0.1,
-                    blue: 1.0,
-                    alpha: 1.,
-                },
+                Color::rgb(0.1, 0.1, 1.0),
             );
         }
     }
@@ -417,12 +337,7 @@ fn render_walls(mut gizmos: Gizmos) {
                     Vec2::new(x as f32, y as f32) * CELL_SIZE - GRID_HALF_SIZE,
                     0.,
                     Vec2::splat(CELL_SIZE - 7.),
-                    Color::Rgba {
-                        red: 0.2,
-                        green: 0.8,
-                        blue: 0.5,
-                        alpha: 1.,
-                    },
+                    Color::rgb(0.2, 0.8, 0.5),
                 );
             }
         }
@@ -436,12 +351,7 @@ fn render_grid(mut gizmos: Gizmos) {
                 Vec2::new(x as f32 * CELL_SIZE, y as f32 * CELL_SIZE) - GRID_HALF_SIZE,
                 0.,
                 Vec2::splat(CELL_SIZE),
-                Color::Rgba {
-                    red: 0.5,
-                    green: 0.5,
-                    blue: 0.5,
-                    alpha: 0.1,
-                },
+                Color::rgb(0.5, 0.5, 0.5),
             );
         }
     }
@@ -462,7 +372,7 @@ fn unit_system(mut unit: ResMut<Unit>, time: Res<Time>) {
         )
     };
 
-    let speed = 3.5 * time.delta_seconds();
+    let speed = SPEED * time.delta_seconds();
     let x_diff = next_step.0 as f32 - unit.pos.x;
     let y_diff = next_step.1 as f32 - unit.pos.y;
     let distance = (x_diff.powi(2) + y_diff.powi(2)).sqrt();
