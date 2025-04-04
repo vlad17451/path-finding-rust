@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_pancam::{PanCam, PanCamPlugin};
 
 mod path_finding;
 
@@ -51,93 +52,28 @@ struct Unit {
 
 fn main() {
     App::new()
-        .add_plugins(DefaultPlugins)
+        .add_plugins((DefaultPlugins, PanCamPlugin::default()))
         .insert_resource(Unit {
             // target: None,
             path_finding: None,
             pos: START,
         })
         .add_systems(Startup, setup)
-        .add_systems(Startup, setup_buttons)
-        .add_systems(Update, button_style)
         .add_systems(FixedUpdate, button_system)
-        .add_systems(Startup, setup_scoreboard)
         .add_systems(Update, render_grid)
         .add_systems(Update, render_walls)
-        .add_systems(Update, render_arrays)
+        .add_systems(Update, render_arrows)
         .add_systems(Update, render_unit)
         .add_systems(Update, unit_system)
         .run();
-}
-
-const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
-const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
-const PRESSED_BUTTON: Color = Color::rgb(0.35, 0.75, 0.35);
-
-#[derive(Component, Debug)]
-struct Scoreboard;
-
-fn setup_scoreboard(mut commands: Commands) {
-    commands.spawn((
-        TextBundle::from_section(
-            "",
-            TextStyle {
-                font_size: 40.0,
-                color: Color::WHITE,
-                ..default()
-            },
-        ),
-        Scoreboard,
-    ));
 }
 
 fn render_unit(mut gizmos: Gizmos, unit: Res<Unit>) {
     gizmos.circle_2d(
         unit.pos * CELL_SIZE - GRID_HALF_SIZE,
         CELL_SIZE / 2. - 7.,
-        Color::rgba(0.5, 0.5, 0.9, 1.),
+        Color::srgba(0.5, 0.5, 0.9, 1.),
     );
-}
-
-fn setup_buttons(mut commands: Commands) {
-    commands
-        .spawn(NodeBundle {
-            style: Style {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                align_items: AlignItems::End,
-                justify_content: JustifyContent::End,
-                padding: UiRect::all(Val::Px(40.0)),
-                ..default()
-            },
-            ..default()
-        })
-        .with_children(|parent| {
-            parent
-                .spawn(ButtonBundle {
-                    style: Style {
-                        width: Val::Px(150.0),
-                        height: Val::Px(65.0),
-                        border: UiRect::all(Val::Px(5.0)),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        ..default()
-                    },
-                    border_color: BorderColor(Color::BLACK),
-                    background_color: NORMAL_BUTTON.into(),
-                    ..default()
-                })
-                .with_children(|parent| {
-                    parent.spawn(TextBundle::from_section(
-                        "+",
-                        TextStyle {
-                            font_size: 40.0,
-                            color: Color::rgb(0.9, 0.9, 0.9),
-                            ..default()
-                        },
-                    ));
-                });
-        });
 }
 
 fn vec2_to_index(vec2: &Vec2) -> (u32, u32) {
@@ -145,31 +81,33 @@ fn vec2_to_index(vec2: &Vec2) -> (u32, u32) {
 }
 
 fn button_system(
-    interaction_query: Query<&Interaction, (Changed<Interaction>, With<Button>)>,
     camera_query: Query<(&Camera, &GlobalTransform)>,
     windows: Query<&Window>,
     buttons: Res<ButtonInput<MouseButton>>,
     mut gizmos: Gizmos,
-    // mut cell_map: ResMut<CellMap>,
-    // mut path: ResMut<PathFinding>,
-    // time: Res<Time>,
     mut unit: ResMut<Unit>,
 ) {
     // if unit.path_finding.is_some() {
     //     return;
     // }
 
+    if buttons.pressed(MouseButton::Right) {
+        unit.path_finding = None;
+        return;
+    }
+
     if !buttons.pressed(MouseButton::Left) {
         return;
     }
 
     let (camera, camera_transform) = camera_query.single();
-
-    let Some(cursor_position) = windows.single().cursor_position() else {
+    let Some(cursor_screen_pos) = windows.single().cursor_position() else {
         return;
     };
-
-    let Some(point) = camera.viewport_to_world_2d(camera_transform, cursor_position) else {
+    let Some(point) = camera
+        .viewport_to_world_2d(camera_transform, cursor_screen_pos)
+        .ok()
+    else {
         return;
     };
 
@@ -177,7 +115,6 @@ fn button_system(
 
     let x = ((point.x + GRID_HALF_SIZE.x) / CELL_SIZE).round() as u32;
     let y = ((point.y + GRID_HALF_SIZE.y) / CELL_SIZE).round() as u32;
-    // println!("Point: {:?} {:?}", x, y);
 
     let mut path_finding = PathFinding::new(
         vec2_to_index(&unit.pos),
@@ -189,70 +126,28 @@ fn button_system(
     path_finding.generate();
 
     unit.path_finding = Some(path_finding);
-
-    // unit.target = Some(Vec2::new(x as f32, y as f32));
-    // path = new_path;
-
-    // for interaction in &interaction_query {
-    //     if *interaction == Interaction::Pressed {
-
-    //         if path.finished {
-    //             println!("Path already found");
-    //             return;
-    //         }
-    //         path.scan_neighbours();
-    //     }
-    // }
-
-    // TODO each 100ms do path.scan_neighbours();
-    // if time. % 0.1 < 0.01 {
-    // println!("Time: {}", time.elapsed_seconds() % 0.2);
-    // if time.elapsed_seconds() % 0.05 < 0.01 {
-    // path.scan_neighbours();
-    // }
-    // }
-    // path.generate();
-}
-
-fn button_style(
-    mut interaction_query: Query<
-        (&Interaction, &mut BackgroundColor, &mut BorderColor),
-        (Changed<Interaction>, With<Button>),
-    >,
-) {
-    for (interaction, mut color, mut border_color) in &mut interaction_query {
-        match *interaction {
-            Interaction::Pressed => {
-                *color = PRESSED_BUTTON.into();
-            }
-            Interaction::Hovered => {
-                *color = HOVERED_BUTTON.into();
-                border_color.0 = Color::WHITE;
-            }
-            Interaction::None => {
-                *color = NORMAL_BUTTON.into();
-                border_color.0 = Color::BLACK;
-            }
-        }
-    }
 }
 
 fn setup(mut commands: Commands) {
-    commands.spawn(Camera2dBundle::default());
-
-    // TODO add button
+    commands.spawn((
+        Camera2d,
+        PanCam {
+            grab_buttons: vec![MouseButton::Right, MouseButton::Middle],
+            ..default()
+        },
+    ));
 }
 
-fn render_arrays(mut gizmos: Gizmos, unit: Res<Unit>) {
+fn render_arrows(mut gizmos: Gizmos, unit: Res<Unit>) {
     let Some(path_finding) = &unit.path_finding else {
         return;
     };
     for &(_, pos) in &path_finding.open_array {
-        gizmos.rect_2d(
-            Vec2::new(pos.0 as f32, pos.1 as f32) * CELL_SIZE - GRID_HALF_SIZE,
-            0.,
+        render_rect(
+            Vec2::new(pos.0 as f32, pos.1 as f32),
             Vec2::splat(CELL_SIZE - 7.),
-            Color::rgba(1.0, 1.0, 1.0, 0.3),
+            Color::srgba(1.0, 1.0, 1.0, 0.3),
+            &mut gizmos,
         );
     }
 
@@ -269,11 +164,11 @@ fn render_arrays(mut gizmos: Gizmos, unit: Res<Unit>) {
 
         let intensity = 1.0 - (cell.goal_distance / max_goal_distance).clamp(0.0, 1.0);
 
-        gizmos.rect_2d(
-            Vec2::new(pos.0 as f32, pos.1 as f32) * CELL_SIZE - GRID_HALF_SIZE,
-            0.,
+        render_rect(
+            Vec2::new(pos.0 as f32, pos.1 as f32),
             Vec2::splat(CELL_SIZE - 7.),
-            Color::rgb(1.0, intensity, 0.0),
+            Color::srgb(1.0, intensity, 0.0),
+            &mut gizmos,
         );
     }
 
@@ -283,7 +178,6 @@ fn render_arrays(mut gizmos: Gizmos, unit: Res<Unit>) {
         let cell = path_finding.cell_map.get(&pos);
         if let Some(cell) = cell {
             let start = Vec2::new(pos.0 as f32, pos.1 as f32) * CELL_SIZE - GRID_HALF_SIZE;
-            // let end = start + Vec2::splat(CELL_SIZE / 2.);
             let end = match cell.direction {
                 // top left
                 1 => start + Vec2::new(-CELL_SIZE / 2., CELL_SIZE / 2.),
@@ -303,7 +197,7 @@ fn render_arrays(mut gizmos: Gizmos, unit: Res<Unit>) {
                 8 => start + Vec2::new(CELL_SIZE / 2., -CELL_SIZE / 2.),
                 _ => start,
             };
-            gizmos.arrow_2d(start, end, Color::YELLOW);
+            gizmos.arrow_2d(start, end, Color::srgb(0.8, 0.4, 0.1));
         }
     }
 
@@ -311,11 +205,11 @@ fn render_arrays(mut gizmos: Gizmos, unit: Res<Unit>) {
         let path = &path_finding.path;
 
         for pos in path {
-            gizmos.rect_2d(
-                Vec2::new(pos.0 as f32, pos.1 as f32) * CELL_SIZE - GRID_HALF_SIZE,
-                0.,
+            render_rect(
+                Vec2::new(pos.0 as f32, pos.1 as f32),
                 Vec2::splat(CELL_SIZE - 15.),
-                Color::rgb(0.1, 0.1, 1.0),
+                Color::srgb(0.1, 0.1, 1.0),
+                &mut gizmos,
             );
         }
     }
@@ -333,25 +227,29 @@ fn render_walls(mut gizmos: Gizmos) {
     for y in 0..Y_SIZE {
         for x in 0..X_SIZE {
             if walls[y as usize][x as usize] == 1 {
-                gizmos.rect_2d(
-                    Vec2::new(x as f32, y as f32) * CELL_SIZE - GRID_HALF_SIZE,
-                    0.,
+                render_rect(
+                    Vec2::new(x as f32, y as f32),
                     Vec2::splat(CELL_SIZE - 7.),
-                    Color::rgb(0.2, 0.8, 0.5),
+                    Color::srgb(0.2, 0.8, 0.5),
+                    &mut gizmos,
                 );
             }
         }
     }
 }
 
+fn render_rect(vector: Vec2, size: Vec2, color: Color, gizmos: &mut Gizmos) {
+    gizmos.rect_2d(vector * CELL_SIZE - GRID_HALF_SIZE, size, color);
+}
+
 fn render_grid(mut gizmos: Gizmos) {
     for x in 0..GRID_SIZE.x as i32 {
         for y in 0..GRID_SIZE.y as i32 {
-            gizmos.rect_2d(
-                Vec2::new(x as f32 * CELL_SIZE, y as f32 * CELL_SIZE) - GRID_HALF_SIZE,
-                0.,
+            render_rect(
+                Vec2::new(x as f32, y as f32),
                 Vec2::splat(CELL_SIZE),
-                Color::rgb(0.5, 0.5, 0.5),
+                Color::srgb(0.5, 0.5, 0.5),
+                &mut gizmos,
             );
         }
     }
@@ -372,7 +270,7 @@ fn unit_system(mut unit: ResMut<Unit>, time: Res<Time>) {
         )
     };
 
-    let speed = SPEED * time.delta_seconds();
+    let speed = SPEED * time.delta_secs();
     let x_diff = next_step.0 as f32 - unit.pos.x;
     let y_diff = next_step.1 as f32 - unit.pos.y;
     let distance = (x_diff.powi(2) + y_diff.powi(2)).sqrt();
